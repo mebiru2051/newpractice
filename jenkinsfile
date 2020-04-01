@@ -1,17 +1,35 @@
-node('maven'){
-  stage('checkout'){
-     checkout scm //commenting
-}
-    stage('printing paramaters'){
-        sh "echo ${environment}"
+pipeline {
+    agent {
+        label 'maven'
+    }  
+    tools {
+        jdk 'openjdk8'
+        maven '363'
+    } 
+    options {
+         timeout(time: 1800, unit: 'SECONDS')
     }
-    stage('build'){
-        sh "sh untilloop.sh"
+    stages {
+        stage ('Test') {
+            steps {
+                sh "mvn clean test surefire-report:report-only"
+                publishHTML([allowMissing: true, alwaysLinkToLastBuild: false, keepAll: false, reportDir: '/home/ec2-user/jenkinsws/workspace/maven/jenkins_demo/target/site', reportFiles: 'surefire-report.html', reportName: 'HTML Report', reportTitles: ''])
+            }
+        }
+        stage('Packaging'){
+            steps {
+                sh "mvn package -DskipTests=true"
+            }
+        }
+        stage('Deploy') {
+            steps {
+                input message: 'DEPLOY?', ok: 'Approve'
+                sshagent(['sudeeptarget']) {
+                  sh "scp  -o StrictHostKeyChecking=no target/my-app-1-RELEASE.jar ec2-user@172.31.42.156:/home/ec2-user"
 }
-    stage('array'){
-        sh "sh array"
-}
-    stage('notify'){
-        sh 'mail -s "the job ran fine" mebiru2051@gmail.com'
-}
+
+            }
+        }
+    }
+    
 }
